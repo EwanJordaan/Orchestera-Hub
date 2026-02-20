@@ -22,15 +22,10 @@
     "url": "https://github.com/EwanJordaan/Orchestera-Hub/issues"
   },
   "homepage": "https://github.com/EwanJordaan/Orchestera-Hub#readme",
-  "dependencies": {
-  },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/morgan": "^1.9.9",
     "@types/node": "^22.0.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.0",
-    "wrangler": "^3.0.0"
+    "wrangler": "^4.67.0"
   }
 }

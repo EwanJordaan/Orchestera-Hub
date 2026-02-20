@@ -1,0 +1,3 @@
+name = "job-orcastrator-api"
+main = "dist/server.js"
+compatibility_date = "2026-02-20"
