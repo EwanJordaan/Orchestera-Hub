@@ -4,10 +4,11 @@
   "description": "Orchestra Hub is a multi-tenant workflow orchestration backend in TypeScript. Define DAG-based jobs and run them with retries, scheduling, and safe concurrency via a DB-backed worker engine. API only, no frontend.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "deploy": "wrangler deploy"
   },
   "repository": {
     "type": "git",
@@ -20,5 +21,16 @@
   "bugs": {
     "url": "https://github.com/EwanJordaan/Orchestera-Hub/issues"
   },
-  "homepage": "https://github.com/EwanJordaan/Orchestera-Hub#readme"
+  "homepage": "https://github.com/EwanJordaan/Orchestera-Hub#readme",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^22.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.0",
+    "wrangler": "^3.0.0"
+  }
 }
