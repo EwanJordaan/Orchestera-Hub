@@ -3,9 +3,9 @@ main = "dist/server.js"
 compatibility_date = "2026-02-20"
 
 [[d1_databases]]
-binding = "DB"
+binding = "orchestera_hub_db"
 database_name = "orchestera-hub-db"
-database_id = "placeholder"
+database_id = "045e591a-a75a-49c7-9e2c-5e4dd4333295"
 
 [[queues.producers]]
 queue = "jobs-queue"
