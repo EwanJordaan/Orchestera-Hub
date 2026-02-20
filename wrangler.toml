@@ -1,9 +1,9 @@
 name = "orchestera-hub"
-main = "dist/server.js"
+main = "src/server.ts"
 compatibility_date = "2026-02-20"
 
 [[d1_databases]]
-binding = "orchestera_hub_db"
+binding = "DB"
 database_name = "orchestera-hub-db"
 database_id = "045e591a-a75a-49c7-9e2c-5e4dd4333295"
 
