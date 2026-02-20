@@ -1,0 +1,24 @@
+{
+  "name": "job_orcastrator_api",
+  "version": "1.0.0",
+  "description": "Orchestra Hub is a multi-tenant workflow orchestration backend in TypeScript. Define DAG-based jobs and run them with retries, scheduling, and safe concurrency via a DB-backed worker engine. API only, no frontend.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EwanJordaan/Orchestera-Hub.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/EwanJordaan/Orchestera-Hub/issues"
+  },
+  "homepage": "https://github.com/EwanJordaan/Orchestera-Hub#readme"
+}
