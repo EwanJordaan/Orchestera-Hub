@@ -23,9 +23,13 @@
   },
   "homepage": "https://github.com/EwanJordaan/Orchestera-Hub#readme",
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260227.0",
     "@types/node": "^22.0.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.0",
     "wrangler": "^4.67.0"
+  },
+  "dependencies": {
+    "hono": "^4.12.0"
   }
 }
