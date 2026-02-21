@@ -1,5 +1,5 @@
 name = "orchestera-hub"
-main = "src/server.ts"
+main = "apps/api/src/worker.ts"
 compatibility_date = "2026-02-20"
 
 [[d1_databases]]
