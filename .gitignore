@@ -140,3 +140,4 @@ vite.config.ts.timestamp-*
 
 # Windows reserved device names
 nul
+local-d1/
