@@ -1,27 +1,22 @@
 {
-  "name": "orchestra-hub",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Monorepo for the Orchestra Hub workflow orchestration system.",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "scripts": {
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "dev:api": "tsx scripts/dev-api.ts",
-    "dev:worker": "tsx scripts/dev-worker.ts",
-    "dev:scheduler": "tsx scripts/dev-scheduler.ts",
-    "seed": "tsx scripts/seed.ts"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.0.0",
-    "@types/node": "^22.0.0",
-    "tsx": "^4.20.5",
-    "typescript": "^5.6.3"
-  },
-  "dependencies": {
-    "uuid": "^13.0.0"
-  }
+	"name": "spring-queen-d5fa",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"test": "vitest",
+		"cf-typegen": "wrangler types"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.12.4",
+		"@types/node": "^25.3.2",
+		"typescript": "^5.5.2",
+		"vitest": "~3.2.0",
+		"wrangler": "^4.69.0"
+	},
+	"dependencies": {
+		"hono": "^4.12.3"
+	}
 }
