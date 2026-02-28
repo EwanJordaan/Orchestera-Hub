@@ -1,10 +1,20 @@
 import { initDatabase } from './config/init';
-import { createRoutes } from './app';
+import { createApp } from './app';
+import { configureDatabase } from './config/db';
 
-export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-		await initDatabase(env.D1);
-		const app = createRoutes();
-		return app.fetch(request, env, ctx);
-	}
-};
+const PORT = process.env.PORT || 3000;
+
+async function start() {
+	configureDatabase();
+	await initDatabase();
+	const app = createApp();
+
+	console.log(`Server running on http://localhost:${PORT}`);
+
+	Bun.serve({
+		port: PORT,
+		fetch: (req) => app.fetch(req)
+	});
+}
+
+start();

@@ -1,22 +1,21 @@
 {
-	"name": "spring-queen-d5fa",
+	"name": "job-orchestrator-api",
 	"version": "0.0.0",
 	"private": true,
+	"type": "module",
 	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest",
-		"cf-typegen": "wrangler types"
-	},
-	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.12.4",
-		"@types/node": "^25.3.2",
-		"typescript": "^5.5.2",
-		"vitest": "~3.2.0",
-		"wrangler": "^4.69.0"
+		"dev": "bun run src/main.ts",
+		"start": "bun run src/main.ts",
+		"test": "vitest"
 	},
 	"dependencies": {
 		"hono": "^4.12.3"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.1.0",
+		"@types/node": "^25.3.2",
+		"bun-types": "^1.1.0",
+		"typescript": "^5.5.2",
+		"vitest": "~3.2.0"
 	}
 }

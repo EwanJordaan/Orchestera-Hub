@@ -1,10 +1,8 @@
-import { Hono, Context } from "hono";
+import { Hono } from 'hono';
+import { registerRoutes } from './api/routes';
 
-export function createRoutes(): Hono {
+export function createApp() {
 	const app = new Hono();
-	app.get("/health", (c: Context) => {
-		return c.json({ status: "healthy" });
-	});
-
+	registerRoutes(app);
 	return app;
 }
