@@ -2,14 +2,21 @@ import { Context } from 'hono';
 import { hashKey } from '../config/hash';
 import { db } from '../config/db';
 
-export async function auth(c: Context, next: () => Promise<void>) {
+function getBearerToken(c: Context): string | null {
 	const authHeader = c.req.header('Authorization');
-
 	if (!authHeader || !authHeader.startsWith('Bearer ')) {
+		return null;
+	}
+
+	return authHeader.slice(7);
+}
+
+export async function auth(c: Context, next: () => Promise<void>) {
+	const apiKey = getBearerToken(c);
+	if (!apiKey) {
 		return c.json({ error: 'Missing or invalid Authorization header' }, 401);
 	}
 
-	const apiKey = authHeader.slice(7);
 	const keyHash = hashKey(apiKey);
 
 	// The tenantId from the path is optional.
@@ -34,13 +41,11 @@ export async function auth(c: Context, next: () => Promise<void>) {
 }
 
 export async function apiKeyAuth(c: Context, next: () => Promise<void>) {
-	const authHeader = c.req.header('Authorization');
-
-	if (!authHeader || !authHeader.startsWith('Bearer ')) {
+	const apiKey = getBearerToken(c);
+	if (!apiKey) {
 		return c.json({ error: 'Missing or invalid Authorization header' }, 401);
 	}
 
-	const apiKey = authHeader.slice(7);
 	const keyHash = hashKey(apiKey);
 
 	const stmt = db.prepare('SELECT tenant_id FROM api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > datetime("now"))');
@@ -54,18 +59,21 @@ export async function apiKeyAuth(c: Context, next: () => Promise<void>) {
 	await next();
 }
 
-export async function adminAuth(c: Context, next: () => Promise<void>) {
-	const authHeader = c.req.header('Authorization');
-
-	if (!authHeader || !authHeader.startsWith('Bearer ')) {
+export async function systemAdminAuth(c: Context, next: () => Promise<void>) {
+	const apiKey = getBearerToken(c);
+	if (!apiKey) {
 		return c.json({ error: 'Missing or invalid Authorization header' }, 401);
 	}
 
-	const apiKey = authHeader.slice(7);
 	const keyHash = hashKey(apiKey);
+	const stmt = db.prepare(
+		'SELECT id FROM admin_api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > datetime("now"))'
+	);
+	const result = stmt.get(keyHash) as { id: string } | undefined;
+	if (!result) {
+		return c.json({ error: 'Invalid or expired admin API key' }, 401);
+	}
 
-	const stmt = db.prepare('SELECT tenant_id FROM tenants WHERE id = ? AND role = "admin"');
-	const result = stmt.get(keyHash) as { tenant_id: string } | undefined;
-
-	return result !== undefined;
+	c.set('adminApiKeyId', result.id);
+	await next();
 }

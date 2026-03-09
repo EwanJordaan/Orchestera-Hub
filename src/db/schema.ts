@@ -15,6 +15,13 @@ export const schemaStatements = [
 		created_at TEXT DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 	);`,
+	`CREATE TABLE IF NOT EXISTS admin_api_keys(
+		id TEXT PRIMARY KEY,
+		key_hash TEXT NOT NULL UNIQUE,
+		label TEXT,
+		expires_at TEXT,
+		created_at TEXT DEFAULT CURRENT_TIMESTAMP
+	);`,
 	`CREATE TABLE IF NOT EXISTS workspaces(
 		id TEXT PRIMARY KEY,
 		title TEXT NOT NULL,
@@ -33,6 +40,7 @@ export const schemaStatements = [
 		FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 	);`,
 	`CREATE INDEX IF NOT EXISTS idx_api_keys_tenant_hash ON api_keys(tenant_id, key_hash);`,
+	`CREATE INDEX IF NOT EXISTS idx_admin_api_keys_hash ON admin_api_keys(key_hash);`,
 	`CREATE INDEX IF NOT EXISTS idx_workspaces_tenant ON workspaces(tenant_id);`,
 	`CREATE INDEX IF NOT EXISTS idx_nodes_tenant ON nodes(tenant_id);`,
 ];

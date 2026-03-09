@@ -1,14 +1,8 @@
 import { Context } from "hono";
 import { db } from "../../config/db";
-import { adminAuth } from "../authMiddleware";
 
 export async function createTenant(c: Context) {
 	const tenantId = crypto.randomUUID();
-    const adminApiKey = c.req.param('adminApiKey');    
-
-    if (!await adminAuth(c, async () => {})) {
-        return c.json({ error: 'Unauthorized' }, 401);
-    }
 
     const body = await c.req.json();
     const { name, email, role, payment_status } = body;
