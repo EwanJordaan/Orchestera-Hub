@@ -3,6 +3,8 @@ export const schemaStatements = [
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		email TEXT,
+		role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin', 'user')),
+		payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK(payment_status IN ('paid', 'unpaid', 'trialing')),
 		created_at TEXT DEFAULT CURRENT_TIMESTAMP
 	);`,
 	`CREATE TABLE IF NOT EXISTS api_keys(
