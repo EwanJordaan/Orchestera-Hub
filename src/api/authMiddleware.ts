@@ -25,7 +25,7 @@ export async function auth(c: Context, next: () => Promise<void>) {
 	const stmt = db.prepare(
 		'SELECT tenant_id FROM api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > datetime("now"))'
 	);
-	const result = stmt.get(keyHash) as { tenant_id: string } | undefined;
+	const result = (await stmt.get(keyHash)) as { tenant_id: string } | undefined;
 
 	if (!result) {
 		return c.json({ error: 'Invalid or expired API key' }, 401);
@@ -49,7 +49,7 @@ export async function apiKeyAuth(c: Context, next: () => Promise<void>) {
 	const keyHash = hashKey(apiKey);
 
 	const stmt = db.prepare('SELECT tenant_id FROM api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > datetime("now"))');
-	const result = stmt.get(keyHash) as { tenant_id: string } | undefined;
+	const result = (await stmt.get(keyHash)) as { tenant_id: string } | undefined;
 
 	if (!result) {
 		return c.json({ error: 'Invalid or expired API key' }, 401);
@@ -69,7 +69,7 @@ export async function systemAdminAuth(c: Context, next: () => Promise<void>) {
 	const stmt = db.prepare(
 		'SELECT id FROM admin_api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > datetime("now"))'
 	);
-	const result = stmt.get(keyHash) as { id: string } | undefined;
+	const result = (await stmt.get(keyHash)) as { id: string } | undefined;
 	if (!result) {
 		return c.json({ error: 'Invalid or expired admin API key' }, 401);
 	}

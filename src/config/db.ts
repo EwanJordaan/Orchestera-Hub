@@ -1,15 +1,64 @@
-import { Database } from 'bun:sqlite';
-import { mkdirSync } from 'fs';
+import pg from 'pg';
 
-mkdirSync('data', { recursive: true });
+const { Pool } = pg;
 
-const dbPath = process.env.DB_PATH || './data/db.sqlite';
+const DATABASE_URL = process.env.DATABASE_URL || 'postgres://user:password@localhost:5432/mydatabase';
 
-export const db = new Database(dbPath);
+const pool = new Pool({
+	connectionString: DATABASE_URL
+});
+
+function normalizeSql(sql: string): string {
+	let placeholderCount = 0;
+	const placeholderSql = sql.replace(/\?/g, () => {
+		placeholderCount += 1;
+		return `$${placeholderCount}`;
+	});
+	return placeholderSql.replace(/datetime\((['"])now\1\)/gi, 'CURRENT_TIMESTAMP');
+}
+
+type Params = unknown[];
+
+export const db = {
+	async run(sql: string, ...params: Params) {
+		const result = await pool.query(normalizeSql(sql), params);
+		return { changes: result.rowCount ?? 0 };
+	},
+	prepare(sql: string) {
+		const text = normalizeSql(sql);
+		return {
+			async get(...params: Params) {
+				const result = await pool.query(text, params);
+				return result.rows[0];
+			},
+			async all(...params: Params) {
+				const result = await pool.query(text, params);
+				return result.rows;
+			},
+			async run(...params: Params) {
+				const result = await pool.query(text, params);
+				return { changes: result.rowCount ?? 0 };
+			}
+		};
+	},
+	transaction<T>(fn: () => Promise<T>) {
+		return async () => {
+			const client = await pool.connect();
+			try {
+				await client.query('BEGIN');
+				const result = await fn();
+				await client.query('COMMIT');
+				return result;
+			} catch (error) {
+				await client.query('ROLLBACK');
+				throw error;
+			} finally {
+				client.release();
+			}
+		};
+	}
+};
 
 export function configureDatabase() {
-	db.run('PRAGMA journal_mode = WAL');
-	db.run('PRAGMA synchronous = NORMAL');
-	db.run('PRAGMA foreign_keys = ON');
-	db.run('PRAGMA busy_timeout = 5000');
+	// PostgreSQL configuration is managed by server settings and connection params.
 }

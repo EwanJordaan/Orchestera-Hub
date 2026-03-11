@@ -16,7 +16,7 @@ export async function getTenants(c: Context) {
 	const adminStmt = db.prepare(
 		'SELECT id FROM admin_api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > datetime("now"))'
 	);
-	const adminKey = adminStmt.get(keyHash) as { id: string } | undefined;
+	const adminKey = (await adminStmt.get(keyHash)) as { id: string } | undefined;
 
 	const targetTenantId = tenantId;
 	if (!targetTenantId) {
@@ -28,7 +28,7 @@ export async function getTenants(c: Context) {
 		const apiKeyStmt = db.prepare(
 			'SELECT tenant_id FROM api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > datetime("now"))'
 		);
-		const apiKeyRow = apiKeyStmt.get(keyHash) as { tenant_id: string } | undefined;
+		const apiKeyRow = (await apiKeyStmt.get(keyHash)) as { tenant_id: string } | undefined;
 
 		if (!apiKeyRow) {
 			return c.json({ error: 'Invalid or expired API key' }, 401);
@@ -42,7 +42,7 @@ export async function getTenants(c: Context) {
 	}
 
 	const tenantStmt = db.prepare('SELECT id, role, email, name FROM tenants WHERE id = ?');
-	const tenant = tenantStmt.get(readableTenantId) as
+	const tenant = (await tenantStmt.get(readableTenantId)) as
 		| { id: string; role: string; email: string; name: string }
 		| undefined;
 

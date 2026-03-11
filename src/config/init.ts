@@ -2,11 +2,14 @@ import { db } from './db';
 import { schemaStatements } from '../db/schema';
 
 export async function initDatabase() {
-	const migrate = db.transaction(() => {
+	await db.run('BEGIN');
+	try {
 		for (const statement of schemaStatements) {
-			db.run(statement);
+			await db.run(statement);
 		}
-	});
-
-	migrate();
+		await db.run('COMMIT');
+	} catch (error) {
+		await db.run('ROLLBACK');
+		throw error;
+	}
 }

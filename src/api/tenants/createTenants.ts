@@ -4,23 +4,23 @@ import { db } from "../../config/db";
 export async function createTenant(c: Context) {
 	const tenantId = crypto.randomUUID();
 
-    const body = await c.req.json();
-    const { name, email, role, payment_status } = body;
-    if (!name) {
-        return c.json({ error: 'Name is required' }, 400);
-    }
-    if (!email) {
-        return c.json({ error: 'Email is required' }, 400);
-    }
-    if (!role) {
-        return c.json({ error: 'Role is required' }, 400);
-    }
-    if (!payment_status) {
-        return c.json({ error: 'Payment status is required' }, 400);
-    }
+	const body = await c.req.json();
+	const { name, email, role, payment_status } = body;
+	if (!name) {
+		return c.json({ error: 'Name is required' }, 400);
+	}
+	if (!email) {
+		return c.json({ error: 'Email is required' }, 400);
+	}
+	if (!role) {
+		return c.json({ error: 'Role is required' }, 400);
+	}
+	if (!payment_status) {
+		return c.json({ error: 'Payment status is required' }, 400);
+	}
 
-    const stmt = db.prepare('INSERT INTO tenants (id, name, email, role, payment_status) VALUES (?, ?, ?, ?, ?)');
-    stmt.run(tenantId, name, email, role, payment_status);
+	const stmt = db.prepare('INSERT INTO tenants (id, name, email, role, payment_status) VALUES (?, ?, ?, ?, ?)');
+	await stmt.run(tenantId, name, email, role, payment_status);
 
-    return c.json({ message: 'Tenant created', tenantId: tenantId }, 201);
+	return c.json({ message: 'Tenant created', tenantId: tenantId }, 201);
 }
