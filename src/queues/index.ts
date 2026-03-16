@@ -1,5 +1,5 @@
 import { Queue, Worker } from 'bullmq';
-import { getRedisConnection } from './connection';
+import { getRedisConnectionOptions } from './connection';
 import type { JobData, JobResult } from './types';
 
 export const QUEUE_NAMES = {
@@ -8,10 +8,10 @@ export const QUEUE_NAMES = {
 } as const;
 
 export function createQueue(name: string): Queue<JobData, JobResult> {
-	const connection = getRedisConnection();
+	const connectionOptions = getRedisConnectionOptions();
 
 	return new Queue<JobData, JobResult>(name, {
-		connection,
+		connection: connectionOptions,
 		defaultJobOptions: {
 			attempts: 3,
 			backoff: {
@@ -37,7 +37,7 @@ export function createWorker(
 	name: string,
 	processor: (job: { data: JobData }) => Promise<JobResult>
 ): Worker<JobData, JobResult> {
-	const connection = getRedisConnection();
+	const connectionOptions = getRedisConnectionOptions();
 
 	return new Worker<JobData, JobResult>(name, async (job) => {
 		console.log(`[Worker] Processing job ${job.id} on queue "${name}"`);
@@ -45,7 +45,7 @@ export function createWorker(
 		console.log(`[Worker] Job ${job.id} completed:`, result);
 		return result;
 	}, {
-		connection,
+		connection: connectionOptions,
 		concurrency: 5,
 	});
 }

@@ -1,40 +1,23 @@
-import { Redis } from 'ioredis';
+import type { RedisOptions } from 'ioredis';
 
-let redisClient: Redis | null = null;
-
-export function getRedisConnection(): Redis {
-	if (redisClient) {
-		return redisClient;
-	}
-
+/**
+ * Retrieves the Redis connection options from environment variables.
+ * This function centralizes the configuration for connecting to Redis,
+ * allowing bullmq to create its own optimized connections.
+ */
+export function getRedisConnectionOptions(): RedisOptions {
 	const host = process.env.REDIS_HOST || 'localhost';
 	const port = parseInt(process.env.REDIS_PORT || '6379', 10);
 	const password = process.env.REDIS_PASSWORD;
 
-	redisClient = new Redis({
+	return {
 		host,
 		port,
 		password: password || undefined,
-		maxRetriesPerRequest: 3,
-		enableReadyCheck: true,
-		lazyConnect: false,
-	});
-
-	redisClient.on('connect', () => {
-		console.log(`[Redis] Connected to ${host}:${port}`);
-	});
-
-	redisClient.on('error', (err) => {
-		console.error('[Redis] Connection error:', err);
-	});
-
-	return redisClient;
-}
-
-export async function closeRedisConnection(): Promise<void> {
-	if (redisClient) {
-		await redisClient.quit();
-		redisClient = null;
-		console.log('[Redis] Connection closed');
-	}
+		// It is recommended to set maxRetriesPerRequest to null for BullMQ.
+		// This prevents ioredis from retrying commands that may have already timed out on the client side.
+		maxRetriesPerRequest: null,
+		// This setting is recommended for BullMQ for performance reasons.
+		enableReadyCheck: false,
+	};
 }
