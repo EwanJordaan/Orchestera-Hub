@@ -52,3 +52,10 @@ export async function getTenants(c: Context) {
 
 	return c.json({ tenant });
 }
+
+export async function getAllTenants(c: Context) {
+	const tenantStmt = db.prepare('SELECT id, role, email, name FROM tenants');
+	const tenants = (await tenantStmt.all()) as { id: string; role: string; email: string; name: string }[];
+
+	return c.json({ tenants });
+}

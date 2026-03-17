@@ -1,5 +1,6 @@
 import { Context } from "hono";
 import { db } from "../../config/db";
+import { systemAdminAuth } from "../authMiddleware";
 
 export async function createTenant(c: Context) {
 	const tenantId = crypto.randomUUID();
