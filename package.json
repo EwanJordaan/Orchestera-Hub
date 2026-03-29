@@ -4,9 +4,16 @@
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/pg": "^8.20.0"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.11",
+    "drizzle": "^1.4.0",
+    "hono": "^4.12.9",
+    "pg": "^8.20.0"
   }
 }
