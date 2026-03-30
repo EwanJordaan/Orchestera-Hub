@@ -173,3 +173,15 @@ export const createIndexes = async () => {
         CREATE INDEX idx_audit_tenant_time ON audit.events (tenant_id, created_at DESC);`
     );
 };
+
+export const databaseInit = async () => {
+    await createAccessTables();
+    await createWorkflowTables();
+    await createExecutionTables();
+    await createScheduleTables();
+    await createWorkerTables();
+    await createAuditTables();
+    await createIndexes();
+};
+
+export default databaseInit;
