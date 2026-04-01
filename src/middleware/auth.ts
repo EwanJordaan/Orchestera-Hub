@@ -44,7 +44,7 @@ export const login = async (c: Context) => {
     const tokenHash = hash(jwt);
 
     try{
-        await query("INSERT INTO app.jwt_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)", [crypto.randomUUID(), user.rows[0].id, tokenHash, expire]);
+        await query("INSERT INTO app.jwt_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4);", [crypto.randomUUID(), user.rows[0].id, tokenHash, expire]);
     } catch(error: any){
         return c.json({error: error.message});
     }
