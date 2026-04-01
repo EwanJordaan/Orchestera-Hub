@@ -22,17 +22,19 @@ export const login = async (c: Context) => {
         return c.json({error: "Invalid password"});
     }
 
-    let expire = Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 30);
+    let expireAt = Math.floor(Date.now() / 1000) + (60 * 60);
 
     if(!rememberMe){
-        expire = Math.floor(Date.now() / 1000) + (60 * 60 * 24);
+        expireAt = Math.floor(Date.now() / 1000) + (60 * 60 * 24);
     }
+
+    const expireAtDate = new Date(expireAt * 1000);
 
     const Payload = {
         sub: user.rows[0].id,
         email: user.rows[0].email,
         role: user.rows[0].role,
-        exp: expire
+        exp: expireAt
     }
 
     if(!process.env.JWT_SECRET){
@@ -44,7 +46,7 @@ export const login = async (c: Context) => {
     const tokenHash = hash(jwt);
 
     try{
-        await query("INSERT INTO app.jwt_tokens (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4);", [crypto.randomUUID(), user.rows[0].id, tokenHash, expire]);
+        await query("INSERT INTO app.jwt_tokens (id, user_id, tenant_id, token_hash, expires_at) VALUES ($1, $2, $3, $4);", [crypto.randomUUID(), user.rows[0].id, user.rows[0].tenant_id, tokenHash, expireAtDate]);
     } catch(error: any){
         return c.json({error: error.message});
     }

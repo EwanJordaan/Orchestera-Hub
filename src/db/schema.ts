@@ -9,6 +9,7 @@ export const createAccessTables = async () => {
     );
     CREATE TABLE IF NOT EXISTS app.users (
         id UUID PRIMARY KEY,
+        tenant_id UUID REFERENCES app.tenants(id),
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -162,9 +163,7 @@ export const createAuditTables = async () => {
 }
 
 export const createIndexes = async () => {
-    await query(`CREATE INDEX IF NOT EXISTS idx_name ON table (columns);
-
-        -- workflows
+    await query(`-- workflows
         CREATE INDEX idx_workflows_tenant ON app.workflows (tenant_id);
         CREATE INDEX idx_jwt_tokens ON app.jwt_tokens (token_hash);
 
