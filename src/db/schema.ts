@@ -26,6 +26,15 @@ export const createAccessTables = async () => {
         key_hash TEXT NOT NULL,
         name TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS app.jwt_tokens (
+        id UUID PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES app.users(id),
+        tenant_id UUID REFERENCES app.tenants(id),
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );`);
 };
 
@@ -157,6 +166,7 @@ export const createIndexes = async () => {
 
         -- workflows
         CREATE INDEX idx_workflows_tenant ON app.workflows (tenant_id);
+        CREATE INDEX idx_jwt_tokens ON app.jwt_tokens (token_hash);
 
         -- workflow runs
         CREATE INDEX idx_runs_tenant_created ON app.workflow_runs (tenant_id, created_at DESC);
