@@ -1,196 +1,229 @@
-import { query } from "./connection";
+import {
+    boolean,
+    index,
+    integer,
+    jsonb,
+    pgSchema,
+    text,
+    timestamp,
+    uuid,
+    unique,
+    type AnyPgColumn,
+} from "drizzle-orm/pg-core";
 
-export const createAccessTables = async () => {
-    await query(`CREATE TABLE IF NOT EXISTS app.tenants (
-        id UUID PRIMARY KEY,
-        name TEXT NOT NULL,
-        slug TEXT UNIQUE NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE TABLE IF NOT EXISTS app.users (
-        id UUID PRIMARY KEY,
-        tenant_id UUID REFERENCES app.tenants(id),
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE TABLE IF NOT EXISTS app.memberships (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL REFERENCES app.tenants(id),
-        user_id UUID NOT NULL REFERENCES app.users(id),
-        role TEXT NOT NULL, -- admin, editor, operator, viewer
-        UNIQUE (tenant_id, user_id)
-    );
-    CREATE TABLE IF NOT EXISTS app.api_keys (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        key_hash TEXT NOT NULL,
-        name TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE TABLE IF NOT EXISTS app.jwt_tokens (
-        id UUID PRIMARY KEY,
-        user_id UUID NOT NULL REFERENCES app.users(id),
-        tenant_id UUID REFERENCES app.tenants(id),
-        token_hash TEXT NOT NULL UNIQUE,
-        expires_at TIMESTAMPTZ NOT NULL,
-        revoked_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );`);
-};
+const app = pgSchema("app");
+const audit = pgSchema("audit");
 
-export const createWorkflowTables = async () => {
-    await query(`CREATE TABLE IF NOT EXISTS app.workflows (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        name TEXT NOT NULL,
-        slug TEXT NOT NULL,
-        active_version_id UUID,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        UNIQUE (tenant_id, slug)
-    );
-    CREATE TABLE IF NOT EXISTS app.workflow_versions (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        workflow_id UUID NOT NULL REFERENCES app.workflows(id),
-        version INT NOT NULL,
-        dag JSONB NOT NULL,
-        input_schema JSONB,
-        status TEXT NOT NULL, -- draft, published, archived
-        checksum TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        UNIQUE (workflow_id, version)
-    );
-    CREATE TABLE IF NOT EXISTS app.workflow_nodes (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        workflow_version_id UUID NOT NULL,
-        node_key TEXT NOT NULL,
-        type TEXT NOT NULL,
-        config JSONB NOT NULL,
-        retry_policy JSONB,
-        timeout_seconds INT,
-        UNIQUE (workflow_version_id, node_key)
-    );
-    CREATE TABLE IF NOT EXISTS app.workflow_edges (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        workflow_version_id UUID NOT NULL,
-        from_node TEXT NOT NULL,
-        to_node TEXT NOT NULL
-    );`);
-}
+const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
-export const createExecutionTables = async () => {
-    await query(`CREATE TABLE IF NOT EXISTS app.workflow_runs (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        workflow_version_id UUID NOT NULL,
-        status TEXT NOT NULL, -- queued, running, succeeded, failed, cancelled
-        input JSONB,
-        context JSONB,
-        started_at TIMESTAMPTZ,
-        finished_at TIMESTAMPTZ,
-        trigger_type TEXT, -- manual, schedule, api
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE TABLE IF NOT EXISTS app.task_runs (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        workflow_run_id UUID NOT NULL,
-        node_key TEXT NOT NULL,
-        status TEXT NOT NULL,
-        attempt_count INT NOT NULL DEFAULT 0,
-        ready_at TIMESTAMPTZ,
-        lease_owner TEXT,
-        lease_expires_at TIMESTAMPTZ,
-        output JSONB,
-        error JSONB,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE TABLE IF NOT EXISTS app.task_attempts (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        task_run_id UUID NOT NULL,
-        attempt_number INT NOT NULL,
-        status TEXT NOT NULL,
-        started_at TIMESTAMPTZ,
-        finished_at TIMESTAMPTZ,
-        logs TEXT,
-        error JSONB
-    );`);
-}
+export const tenants = app.table("tenants", {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").unique().notNull(),
+    created_at: timestamptz("created_at").notNull().defaultNow(),
+});
 
-export const createScheduleTables = async () => {
-    await query(`CREATE TABLE IF NOT EXISTS app.schedules (
-        id UUID PRIMARY KEY,
-        tenant_id UUID NOT NULL,
-        workflow_id UUID NOT NULL,
-        cron TEXT NOT NULL,
-        next_run_at TIMESTAMPTZ,
-        paused BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );`);
-}
+export const users = app.table("users", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    email: text("email").unique().notNull(),
+    password_hash: text("password_hash"),
+    created_at: timestamptz("created_at").notNull().defaultNow(),
+});
 
-export const createWorkerTables = async () => {
-    await query(`CREATE TABLE IF NOT EXISTS app.workers (
-        id UUID PRIMARY KEY,
-        tenant_id UUID,
-        name TEXT,
-        last_heartbeat TIMESTAMPTZ,
-        status TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE TABLE IF NOT EXISTS app.worker_leases (
-        id UUID PRIMARY KEY,
-        task_run_id UUID NOT NULL,
-        worker_id UUID NOT NULL,
-        lease_expires_at TIMESTAMPTZ NOT NULL
-    );`);
-}
+export const memberships = app.table(
+    "memberships",
+    {
+        id: uuid("id").primaryKey(),
+        tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
+        user_id: uuid("user_id").notNull().references(() => users.id),
+        role: text("role").notNull(),
+    },
+    (table) => [
+        unique("memberships_tenant_id_user_id_unique").on(table.tenant_id, table.user_id),
+    ],
+);
 
-export const createAuditTables = async () => {
-    await query(`CREATE TABLE IF NOT EXISTS audit.events (
-        id UUID PRIMARY KEY,
-        tenant_id UUID,
-        type TEXT NOT NULL,
-        entity_type TEXT,
-        entity_id UUID,
-        payload JSONB,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );`);
-}
+export const api_keys = app.table("api_keys", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").notNull(),
+    key_hash: text("key_hash").notNull(),
+    name: text("name"),
+    created_at: timestamptz("created_at").notNull().defaultNow(),
+});
 
-export const createIndexes = async () => {
-    await query(`-- workflows
-        CREATE INDEX idx_workflows_tenant ON app.workflows (tenant_id);
-        CREATE INDEX idx_jwt_tokens ON app.jwt_tokens (token_hash);
+export const jwt_tokens = app.table("jwt_tokens", {
+    id: uuid("id").primaryKey(),
+    user_id: uuid("user_id").notNull().references(() => users.id),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    token_hash: text("token_hash").unique().notNull(),
+    expires_at: timestamptz("expires_at").notNull(),
+    revoked_at: timestamptz("revoked_at"),
+    created_at: timestamptz("created_at").notNull().defaultNow(),
+}, (table) => [
+    index("idx_jwt_tokens").on(table.token_hash),
+]);
 
-        -- workflow runs
-        CREATE INDEX idx_runs_tenant_created ON app.workflow_runs (tenant_id, created_at DESC);
-        CREATE INDEX idx_runs_status ON app.workflow_runs (tenant_id, status);
+export const workflows = app.table(
+    "workflows",
+    {
+        id: uuid("id").primaryKey(),
+        tenant_id: uuid("tenant_id").notNull(),
+        name: text("name").notNull(),
+        slug: text("slug").notNull(),
+        active_version_id: uuid("active_version_id").references((): AnyPgColumn => workflow_versions.id),
+        created_at: timestamptz("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        unique("workflows_tenant_id_slug_unique").on(table.tenant_id, table.slug),
+        index("idx_workflows_tenant").on(table.tenant_id),
+    ],
+);
 
-        -- task runs
-        CREATE INDEX idx_tasks_ready ON app.task_runs (status, ready_at);
-        CREATE INDEX idx_tasks_run ON app.task_runs (workflow_run_id);
+export const workflow_versions = app.table(
+    "workflow_versions",
+    {
+        id: uuid("id").primaryKey(),
+        tenant_id: uuid("tenant_id").notNull(),
+        workflow_id: uuid("workflow_id").notNull().references(() => workflows.id),
+        version: integer("version").notNull(),
+        dag: jsonb("dag").notNull(),
+        input_schema: jsonb("input_schema"),
+        status: text("status").notNull(),
+        checksum: text("checksum"),
+        created_at: timestamptz("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        unique("workflow_versions_workflow_id_version_unique").on(table.workflow_id, table.version),
+    ],
+);
 
-        -- schedules
-        CREATE INDEX idx_schedules_next_run ON app.schedules (next_run_at);
+export const workflow_nodes = app.table(
+    "workflow_nodes",
+    {
+        id: uuid("id").primaryKey(),
+        tenant_id: uuid("tenant_id").notNull(),
+        workflow_version_id: uuid("workflow_version_id").notNull(),
+        node_key: text("node_key").notNull(),
+        type: text("type").notNull(),
+        config: jsonb("config").notNull(),
+        retry_policy: jsonb("retry_policy"),
+        timeout_seconds: integer("timeout_seconds"),
+    },
+    (table) => [
+        unique("workflow_nodes_workflow_version_id_node_key_unique").on(
+            table.workflow_version_id,
+            table.node_key,
+        ),
+    ],
+);
 
-        -- audit
-        CREATE INDEX idx_audit_tenant_time ON audit.events (tenant_id, created_at DESC);`
-    );
-};
+export const workflow_edges = app.table("workflow_edges", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").notNull(),
+    workflow_version_id: uuid("workflow_version_id").notNull(),
+    from_node: text("from_node").notNull(),
+    to_node: text("to_node").notNull(),
+});
 
-export const databaseInit = async () => {
-    await createAccessTables();
-    await createWorkflowTables();
-    await createExecutionTables();
-    await createScheduleTables();
-    await createWorkerTables();
-    await createAuditTables();
-    await createIndexes();
-};
+export const workflow_runs = app.table(
+    "workflow_runs",
+    {
+        id: uuid("id").primaryKey(),
+        tenant_id: uuid("tenant_id").notNull(),
+        workflow_version_id: uuid("workflow_version_id").notNull(),
+        status: text("status").notNull(),
+        input: jsonb("input"),
+        context: jsonb("context"),
+        started_at: timestamptz("started_at"),
+        finished_at: timestamptz("finished_at"),
+        trigger_type: text("trigger_type"),
+        created_at: timestamptz("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        index("idx_runs_tenant_created").on(table.tenant_id, table.created_at),
+        index("idx_runs_status").on(table.tenant_id, table.status),
+    ],
+);
 
-export default databaseInit;
+export const task_runs = app.table(
+    "task_runs",
+    {
+        id: uuid("id").primaryKey(),
+        tenant_id: uuid("tenant_id").notNull(),
+        workflow_run_id: uuid("workflow_run_id").notNull(),
+        node_key: text("node_key").notNull(),
+        status: text("status").notNull(),
+        attempt_count: integer("attempt_count").notNull().default(0),
+        ready_at: timestamptz("ready_at"),
+        lease_owner: text("lease_owner"),
+        lease_expires_at: timestamptz("lease_expires_at"),
+        output: jsonb("output"),
+        error: jsonb("error"),
+        created_at: timestamptz("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        index("idx_tasks_ready").on(table.status, table.ready_at),
+        index("idx_tasks_run").on(table.workflow_run_id),
+    ],
+);
+
+export const task_attempts = app.table("task_attempts", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").notNull(),
+    task_run_id: uuid("task_run_id").notNull(),
+    attempt_number: integer("attempt_number").notNull(),
+    status: text("status").notNull(),
+    started_at: timestamptz("started_at"),
+    finished_at: timestamptz("finished_at"),
+    logs: text("logs"),
+    error: jsonb("error"),
+});
+
+export const schedules = app.table(
+    "schedules",
+    {
+        id: uuid("id").primaryKey(),
+        tenant_id: uuid("tenant_id").notNull(),
+        workflow_id: uuid("workflow_id").notNull(),
+        cron: text("cron").notNull(),
+        next_run_at: timestamptz("next_run_at"),
+        paused: boolean("paused").notNull().default(false),
+        created_at: timestamptz("created_at").defaultNow().notNull(),
+    },
+    (table) => [
+        index("idx_schedules_next_run").on(table.next_run_at),
+    ],
+);
+
+export const workers = app.table("workers", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id"),
+    name: text("name"),
+    last_heartbeat: timestamptz("last_heartbeat"),
+    status: text("status"),
+    created_at: timestamptz("created_at").notNull().defaultNow(),
+});
+
+export const worker_leases = app.table("worker_leases", {
+    id: uuid("id").primaryKey(),
+    task_run_id: uuid("task_run_id").notNull(),
+    worker_id: uuid("worker_id").notNull(),
+    lease_expires_at: timestamptz("lease_expires_at").notNull(),
+});
+
+export const events = audit.table(
+    "events",
+    {
+        id: uuid("id").primaryKey(),
+        tenant_id: uuid("tenant_id"),
+        type: text("type").notNull(),
+        entity_type: text("entity_type"),
+        entity_id: uuid("entity_id"),
+        payload: jsonb("payload"),
+        created_at: timestamptz("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        index("idx_audit_tenant_time").on(table.tenant_id, table.created_at),
+    ],
+);

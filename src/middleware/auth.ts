@@ -53,3 +53,43 @@ export const login = async (c: Context) => {
 
     return c.json({token: jwt});
 }
+
+export const logout = async (c: Context) => {
+    const token = c.req.header("Authorization")?.split(" ")[1];
+
+    if(!token){
+        return c.json({error: "Missing token"});
+    }
+
+    const tokenHash = hash(token);
+
+    try{
+        await query("UPDATE app.jwt_tokens SET revoked_at = now() WHERE token_hash = $1", [tokenHash]);
+    } catch(error: any){
+        return c.json({error: error.message});
+    }
+
+    return c.json({message: "Logged out successfully"});
+}
+
+export const auth = async (c: Context, next: () => Promise<void>) => {
+    const token = c.req.header("Authorization")?.split(" ")[1];
+
+    if(!token){
+        return c.json({error: "Missing token"});
+    }
+
+    const tokenHash = hash(token);
+
+    const tokenData = await query("SELECT * FROM app.jwt_tokens WHERE token_hash = $1", [tokenHash]);
+
+    if(tokenData.rowCount === 0){
+        return c.json({error: "Invalid token"});
+    }
+
+    if(tokenData.rows[0].revoked_at){
+        return c.json({error: "Token revoked"});
+    }
+
+    next();
+}

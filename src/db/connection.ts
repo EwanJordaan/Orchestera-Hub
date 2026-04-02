@@ -1,4 +1,6 @@
 import { Pool, type PoolConfig } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from './schema';
 
 const poolConfig: PoolConfig = {
     connectionString: process.env.DATABASE_URL,
@@ -12,18 +14,6 @@ const poolConfig: PoolConfig = {
     connectionTimeoutMillis: 2000
 };
 
-const pool = new Pool(poolConfig);
-
-pool.on("error", (err, client) => {
-  console.error("Unexpected error on idle client", err);
-});
-
-export const query = (text: string, params?: any[]) => {
-  return pool.query(text, params);
-};
-
-export const getClient = () => {
-  return pool.connect();
-};
-
-export default pool;
+export const pool = new Pool(poolConfig);
+export const db = drizzle(pool, { schema });
+export const query = pool.query.bind(pool);
