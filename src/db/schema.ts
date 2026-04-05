@@ -3,7 +3,7 @@ import {
     index,
     integer,
     jsonb,
-    pgSchema,
+    pgTable,
     text,
     timestamp,
     uuid,
@@ -11,27 +11,26 @@ import {
     type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
-const app = pgSchema("app");
-const audit = pgSchema("audit");
-
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
-export const tenants = app.table("tenants", {
+export const tenants = pgTable("tenants", {
     id: uuid("id").primaryKey(),
     name: text("name").notNull(),
     slug: text("slug").unique().notNull(),
     created_at: timestamptz("created_at").notNull().defaultNow(),
 });
 
-export const users = app.table("users", {
+/*
+export const users = pgTable("users", {
     id: uuid("id").primaryKey(),
     tenant_id: uuid("tenant_id").references(() => tenants.id),
     email: text("email").unique().notNull(),
     password_hash: text("password_hash"),
+    role: text("role"),
     created_at: timestamptz("created_at").notNull().defaultNow(),
 });
 
-export const memberships = app.table(
+export const memberships = pgTable(
     "memberships",
     {
         id: uuid("id").primaryKey(),
@@ -44,53 +43,55 @@ export const memberships = app.table(
     ],
 );
 
-export const api_keys = app.table("api_keys", {
+export const api_keys = pgTable("api_keys", {
     id: uuid("id").primaryKey(),
     tenant_id: uuid("tenant_id").notNull(),
     key_hash: text("key_hash").notNull(),
     name: text("name"),
     created_at: timestamptz("created_at").notNull().defaultNow(),
+    expires_at: timestamptz("expires_at"),
 });
 
-export const jwt_tokens = app.table("jwt_tokens", {
-    id: uuid("id").primaryKey(),
-    user_id: uuid("user_id").notNull().references(() => users.id),
-    tenant_id: uuid("tenant_id").references(() => tenants.id),
-    token_hash: text("token_hash").unique().notNull(),
-    expires_at: timestamptz("expires_at").notNull(),
-    revoked_at: timestamptz("revoked_at"),
-    created_at: timestamptz("created_at").notNull().defaultNow(),
-}, (table) => [
-    index("idx_jwt_tokens").on(table.token_hash),
-]);
+export const jwt_tokens = pgTable(
+    "jwt_tokens",
+    {
+        id: uuid("id").primaryKey(),
+        user_id: uuid("user_id").notNull().references(() => users.id),
+        tenant_id: uuid("tenant_id").references(() => tenants.id),
+        token_hash: text("token_hash").unique().notNull(),
+        expires_at: timestamptz("expires_at").notNull(),
+        revoked_at: timestamptz("revoked_at"),
+        created_at: timestamptz("created_at").notNull().defaultNow(),
+    },
+    (table) => [index("idx_jwt_tokens").on(table.token_hash)],
+);
+*/
 
-export const workflows = app.table(
+export const workflows = pgTable(
     "workflows",
     {
         id: uuid("id").primaryKey(),
-        tenant_id: uuid("tenant_id").notNull(),
+        tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
         name: text("name").notNull(),
-        slug: text("slug").notNull(),
+        description: text("description"),
+        is_active: boolean("is_active"),
         active_version_id: uuid("active_version_id").references((): AnyPgColumn => workflow_versions.id),
         created_at: timestamptz("created_at").notNull().defaultNow(),
     },
     (table) => [
-        unique("workflows_tenant_id_slug_unique").on(table.tenant_id, table.slug),
+        unique("workflows_tenant_id_name_unique").on(table.tenant_id, table.name),
         index("idx_workflows_tenant").on(table.tenant_id),
     ],
 );
 
-export const workflow_versions = app.table(
+export const workflow_versions = pgTable(
     "workflow_versions",
     {
         id: uuid("id").primaryKey(),
-        tenant_id: uuid("tenant_id").notNull(),
+        tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
         workflow_id: uuid("workflow_id").notNull().references(() => workflows.id),
         version: integer("version").notNull(),
-        dag: jsonb("dag").notNull(),
-        input_schema: jsonb("input_schema"),
-        status: text("status").notNull(),
-        checksum: text("checksum"),
+        definition_json: jsonb("definition_json").notNull(),
         created_at: timestamptz("created_at").notNull().defaultNow(),
     },
     (table) => [
@@ -98,46 +99,50 @@ export const workflow_versions = app.table(
     ],
 );
 
-export const workflow_nodes = app.table(
-    "workflow_nodes",
+export const tasks = pgTable(
+    "tasks",
     {
         id: uuid("id").primaryKey(),
-        tenant_id: uuid("tenant_id").notNull(),
-        workflow_version_id: uuid("workflow_version_id").notNull(),
-        node_key: text("node_key").notNull(),
+        workflow_version_id: uuid("workflow_version_id").notNull().references(() => workflow_versions.id),
+        name: text("name").notNull(),
         type: text("type").notNull(),
         config: jsonb("config").notNull(),
         retry_policy: jsonb("retry_policy"),
         timeout_seconds: integer("timeout_seconds"),
     },
     (table) => [
-        unique("workflow_nodes_workflow_version_id_node_key_unique").on(
-            table.workflow_version_id,
-            table.node_key,
-        ),
+        unique("tasks_workflow_version_id_name_unique").on(table.workflow_version_id, table.name),
     ],
 );
 
-export const workflow_edges = app.table("workflow_edges", {
+export const task_dependencies = pgTable("task_dependencies", {
+    id: uuid("id").primaryKey(),
+    workflow_version_id: uuid("workflow_version_id").notNull().references(() => workflow_versions.id),
+    parent_task_id: uuid("parent_task_id").notNull().references(() => tasks.id),
+    child_task_id: uuid("child_task_id").notNull().references(() => tasks.id),
+});
+
+/*
+export const workflow_edges = pgTable("workflow_edges", {
     id: uuid("id").primaryKey(),
     tenant_id: uuid("tenant_id").notNull(),
     workflow_version_id: uuid("workflow_version_id").notNull(),
     from_node: text("from_node").notNull(),
     to_node: text("to_node").notNull(),
 });
+*/
 
-export const workflow_runs = app.table(
+export const workflow_runs = pgTable(
     "workflow_runs",
     {
         id: uuid("id").primaryKey(),
-        tenant_id: uuid("tenant_id").notNull(),
-        workflow_version_id: uuid("workflow_version_id").notNull(),
-        status: text("status").notNull(),
-        input: jsonb("input"),
-        context: jsonb("context"),
+        tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
+        workflow_id: uuid("workflow_id").notNull().references(() => workflows.id),
+        workflow_version_id: uuid("workflow_version_id").notNull().references(() => workflow_versions.id),
+        status: text("status", { enum: ["pending", "running", "completed", "failed"] }).notNull(),
+        triggered_by: text("triggered_by", { enum: ["user", "system", "schedule"] }),
         started_at: timestamptz("started_at"),
         finished_at: timestamptz("finished_at"),
-        trigger_type: text("trigger_type"),
         created_at: timestamptz("created_at").notNull().defaultNow(),
     },
     (table) => [
@@ -146,18 +151,16 @@ export const workflow_runs = app.table(
     ],
 );
 
-export const task_runs = app.table(
+export const task_runs = pgTable(
     "task_runs",
     {
         id: uuid("id").primaryKey(),
-        tenant_id: uuid("tenant_id").notNull(),
-        workflow_run_id: uuid("workflow_run_id").notNull(),
-        node_key: text("node_key").notNull(),
+        tenant_id: uuid("tenant_id").notNull().references(() => tenants.id),
+        workflow_run_id: uuid("workflow_run_id").references(() => workflow_runs.id),
+        task_id: uuid("task_id").references(() => tasks.id),
         status: text("status").notNull(),
         attempt_count: integer("attempt_count").notNull().default(0),
         ready_at: timestamptz("ready_at"),
-        lease_owner: text("lease_owner"),
-        lease_expires_at: timestamptz("lease_expires_at"),
         output: jsonb("output"),
         error: jsonb("error"),
         created_at: timestamptz("created_at").notNull().defaultNow(),
@@ -168,62 +171,149 @@ export const task_runs = app.table(
     ],
 );
 
-export const task_attempts = app.table("task_attempts", {
+/*
+export const task_run_dependencies = pgTable("task_run_dependencies", {
     id: uuid("id").primaryKey(),
-    tenant_id: uuid("tenant_id").notNull(),
-    task_run_id: uuid("task_run_id").notNull(),
-    attempt_number: integer("attempt_number").notNull(),
-    status: text("status").notNull(),
-    started_at: timestamptz("started_at"),
-    finished_at: timestamptz("finished_at"),
-    logs: text("logs"),
-    error: jsonb("error"),
+    task_run_id: uuid("task_run_id").references(() => task_runs.id),
+    depends_on_task_run_id: uuid("depends_on_task_run_id").references(() => task_runs.id),
 });
+*/
 
-export const schedules = app.table(
-    "schedules",
+export const job_queue = pgTable(
+    "job_queue",
     {
         id: uuid("id").primaryKey(),
-        tenant_id: uuid("tenant_id").notNull(),
-        workflow_id: uuid("workflow_id").notNull(),
-        cron: text("cron").notNull(),
-        next_run_at: timestamptz("next_run_at"),
-        paused: boolean("paused").notNull().default(false),
-        created_at: timestamptz("created_at").defaultNow().notNull(),
+        tenant_id: uuid("tenant_id").references(() => tenants.id),
+        task_run_id: uuid("task_run_id").references(() => task_runs.id),
+        status: text("status", { enum: ["queued", "claimed", "done", "failed"] }).notNull(),
+        priority: text("priority"),
+        scheduled_at: timestamptz("scheduled_at").notNull(),
+        available_at: timestamptz("available_at"),
+        created_at: timestamptz("created_at").defaultNow(),
     },
-    (table) => [
-        index("idx_schedules_next_run").on(table.next_run_at),
-    ],
 );
 
-export const workers = app.table("workers", {
+/*
+export const scheduled_jobs = pgTable("scheduled_jobs", {
     id: uuid("id").primaryKey(),
-    tenant_id: uuid("tenant_id"),
-    name: text("name"),
-    last_heartbeat: timestamptz("last_heartbeat"),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    workflow_id: uuid("workflow_id").references(() => workflows.id),
+    cron_expression: text("cron_expression").notNull(),
+    next_run_at: timestamptz("next_run_at"),
+    is_active: boolean("is_active").default(false),
+    created_at: timestamptz("created_at").defaultNow(),
+});
+
+export const job_locks = pgTable("job_locks", {
+    id: uuid("id").primaryKey(),
+    resource_key: text("resource_key"),
+    locked_by: text("locked_by"),
+    expires_at: timestamptz("expires_at"),
+    created_at: timestamptz("created_at").defaultNow(),
+});
+
+export const retry_policies = pgTable("retry_policies", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    max_retries: integer("max_retries").notNull(),
+    backoff_strategy: text("backoff_strategy", { enum: ["fixed", "exponential"] }).default("fixed"),
+    delay_seconds: integer("delay_seconds").notNull(),
+});
+
+export const task_run_attempts = pgTable("task_run_attempts", {
+    id: uuid("id").primaryKey(),
+    task_run_id: uuid("task_run_id").references(() => task_runs.id),
+    attempt_number: integer("attempt_number").default(1),
+    started_at: timestamptz("started_at"),
+    completed_at: timestamptz("completed_at").defaultNow(),
     status: text("status"),
+    error_message: text("error_message"),
+});
+
+export const dead_letter_queue = pgTable("dead_letter_queue", {
+    id: uuid("id").primaryKey(),
+    task_run_id: uuid("task_run_id").references(() => task_runs.id),
+    reason: text("reason"),
+    payload: jsonb("payload"),
+    created_at: timestamptz("created_at").defaultNow(),
+});
+
+export const logs = pgTable("logs", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    workflow_run_id: uuid("workflow_run_id").references(() => workflow_runs.id),
+    task_run_id: uuid("task_run_id").references(() => task_runs.id),
+    level: text("level", { enum: ["info", "error", "debug"] }).default("info"),
+    message: text("message"),
+    metadata_json: jsonb("metadata_json"),
+    created_at: timestamptz("created_at").defaultNow(),
+});
+
+export const metrics = pgTable("metrics", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    workflow_run_id: uuid("workflow_run_id").references(() => workflow_runs.id),
+    task_run_id: uuid("task_run_id").references(() => task_runs.id),
+    metric_name: text("metric_name").notNull(),
+    metric_value: integer("metric_value"),
+    recorded_at: timestamptz("recorded_at").defaultNow(),
+});
+
+export const workers = pgTable("workers", {
+    id: uuid("id").primaryKey(),
+    name: text("name"),
+    status: text("status"),
+    last_heartbeat: timestamptz("last_heartbeat"),
+    capabilities: jsonb("capabilities"),
     created_at: timestamptz("created_at").notNull().defaultNow(),
 });
 
-export const worker_leases = app.table("worker_leases", {
+export const worker_heartbeats = pgTable("worker_heartbeats", {
     id: uuid("id").primaryKey(),
-    task_run_id: uuid("task_run_id").notNull(),
-    worker_id: uuid("worker_id").notNull(),
-    lease_expires_at: timestamptz("lease_expires_at").notNull(),
+    worker_id: uuid("worker_id").references(() => workers.id),
+    heartbeat_at: timestamptz("heartbeat_at").defaultNow(),
 });
 
-export const events = audit.table(
-    "events",
-    {
-        id: uuid("id").primaryKey(),
-        tenant_id: uuid("tenant_id"),
-        type: text("type").notNull(),
-        entity_type: text("entity_type"),
-        entity_id: uuid("entity_id"),
-        payload: jsonb("payload"),
-        created_at: timestamptz("created_at").notNull().defaultNow(),
-    },
-    (table) => [
-        index("idx_audit_tenant_time").on(table.tenant_id, table.created_at),
-    ],
-);
+export const roles = pgTable("roles", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    name: text("name").notNull(),
+});
+
+export const permissions = pgTable("permissions", {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+});
+
+export const role_permissions = pgTable("role_permissions", {
+    roles_id: uuid("roles_id").references(() => roles.id),
+    permissions_id: uuid("permissions_id").references(() => permissions.id),
+});
+
+export const user_roles = pgTable("user_roles", {
+    user_id: uuid("user_id").references(() => users.id),
+    role_id: uuid("role_id").references(() => roles.id),
+});
+
+export const artifacts = pgTable("artifacts", {
+    id: uuid("id").primaryKey(),
+    task_run_id: uuid("task_run_id").references(() => task_runs.id),
+    storage_url: text("storage_url"),
+    metadata_json: jsonb("metadata_json"),
+});
+
+export const secrets = pgTable("secrets", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    name: text("name").notNull(),
+    encrypted_value: text("encrypted_value").notNull(),
+    created_at: timestamptz("created_at").defaultNow(),
+});
+
+export const event_triggers = pgTable("event_triggers", {
+    id: uuid("id").primaryKey(),
+    tenant_id: uuid("tenant_id").references(() => tenants.id),
+    event_type: text("event_type"),
+    config_json: jsonb("config_json"),
+});
+*/
