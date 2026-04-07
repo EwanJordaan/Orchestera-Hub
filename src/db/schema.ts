@@ -20,12 +20,11 @@ export const tenants = pgTable("tenants", {
     created_at: timestamptz("created_at").notNull().defaultNow(),
 });
 
-/*
 export const users = pgTable("users", {
     id: uuid("id").primaryKey(),
     tenant_id: uuid("tenant_id").references(() => tenants.id),
     email: text("email").unique().notNull(),
-    password_hash: text("password_hash"),
+    password_hash: text("password_hash").notNull(),
     role: text("role"),
     created_at: timestamptz("created_at").notNull().defaultNow(),
 });
@@ -51,21 +50,6 @@ export const api_keys = pgTable("api_keys", {
     created_at: timestamptz("created_at").notNull().defaultNow(),
     expires_at: timestamptz("expires_at"),
 });
-
-export const jwt_tokens = pgTable(
-    "jwt_tokens",
-    {
-        id: uuid("id").primaryKey(),
-        user_id: uuid("user_id").notNull().references(() => users.id),
-        tenant_id: uuid("tenant_id").references(() => tenants.id),
-        token_hash: text("token_hash").unique().notNull(),
-        expires_at: timestamptz("expires_at").notNull(),
-        revoked_at: timestamptz("revoked_at"),
-        created_at: timestamptz("created_at").notNull().defaultNow(),
-    },
-    (table) => [index("idx_jwt_tokens").on(table.token_hash)],
-);
-*/
 
 export const workflows = pgTable(
     "workflows",
@@ -121,16 +105,6 @@ export const task_dependencies = pgTable("task_dependencies", {
     parent_task_id: uuid("parent_task_id").notNull().references(() => tasks.id),
     child_task_id: uuid("child_task_id").notNull().references(() => tasks.id),
 });
-
-/*
-export const workflow_edges = pgTable("workflow_edges", {
-    id: uuid("id").primaryKey(),
-    tenant_id: uuid("tenant_id").notNull(),
-    workflow_version_id: uuid("workflow_version_id").notNull(),
-    from_node: text("from_node").notNull(),
-    to_node: text("to_node").notNull(),
-});
-*/
 
 export const workflow_runs = pgTable(
     "workflow_runs",

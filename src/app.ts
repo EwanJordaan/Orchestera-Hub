@@ -1,13 +1,11 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { login, logout, auth } from './middleware/auth';
+import { Auth, App } from "./middleware/routes"
 
 const app = new Hono();
 
 app.get('/health', (c) => {return c.json({status: 'ok'})});
-app.post('/login', login);
-app.post('/logout', logout);
-app.all('/api/*', auth);
+app.route("/", App);
 
 const port = Number(process.env.PORT) || 3000;
 console.log(`Server is running on port ${port}`)
